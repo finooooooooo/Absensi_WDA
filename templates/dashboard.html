@@ -1,0 +1,407 @@
+{% extends "base.html" %}
+
+{% block content %}
+<!-- Top Header -->
+<div class="container pt-4 pb-2">
+    <div class="d-flex justify-content-between align-items-center">
+        <div>
+            <h5 class="mb-0 fw-bold text-wine">Hello, {{ user_name }}</h5>
+            <small class="text-muted">{{ role }}</small>
+        </div>
+        <div class="text-end">
+            <div class="fw-bold text-dark" id="live-time">--:--</div>
+            <small class="text-muted">{{ server_date }}</small>
+        </div>
+    </div>
+</div>
+
+<!-- Main Content Area -->
+<div class="container mt-3 mb-5" style="padding-bottom: 60px;">
+
+    <!-- HOME SECTION -->
+    <div id="home-section" class="spa-section">
+        <!-- Status Card -->
+        <div class="card card-glass p-4 text-center mb-4">
+            <h6 class="text-muted mb-3">Attendance Status</h6>
+            <div id="status-display">
+                <div class="spinner-border text-wine" role="status">
+                    <span class="visually-hidden">Loading...</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Camera Preview -->
+        <div class="card card-glass p-2 mb-4 overflow-hidden position-relative" style="height: 300px;">
+            <video id="camera-stream" autoplay playsinline muted style="width: 100%; height: 100%; object-fit: cover; border-radius: 15px; transform: scaleX(-1);"></video>
+            <div class="position-absolute top-50 start-50 translate-middle text-white" id="camera-loading">
+                <i class="fas fa-camera fa-2x"></i>
+            </div>
+            <canvas id="camera-canvas" style="display: none;"></canvas>
+        </div>
+
+        <!-- Action Buttons -->
+        <div class="row g-2 mb-3">
+            <div class="col-4">
+                <button class="btn btn-outline-secondary w-100 py-3 shift-btn" data-shift="Pagi">
+                    <i class="fas fa-sun mb-1"></i><br>Pagi
+                </button>
+            </div>
+            <div class="col-4">
+                <button class="btn btn-outline-secondary w-100 py-3 shift-btn" data-shift="Siang">
+                    <i class="fas fa-cloud-sun mb-1"></i><br>Siang
+                </button>
+            </div>
+            <div class="col-4">
+                <button class="btn btn-outline-secondary w-100 py-3 shift-btn" data-shift="Sore">
+                    <i class="fas fa-moon mb-1"></i><br>Sore
+                </button>
+            </div>
+        </div>
+
+        <button id="btn-check-in" class="btn btn-wine w-100 py-3 mb-3 fw-bold shadow-sm" disabled>
+            CHECK IN
+        </button>
+
+        <button id="btn-check-out" class="btn btn-danger w-100 py-3 fw-bold shadow-sm mb-3" style="display: none;">
+            CHECK OUT
+        </button>
+
+        <!-- Overtime Section -->
+        <div class="form-check form-switch mb-3 p-3 card-glass">
+             <input class="form-check-input" type="checkbox" id="overtimeToggle" disabled>
+             <label class="form-check-label ms-2" for="overtimeToggle">Lembur (Overtime)</label>
+             <div class="small text-muted mt-1" id="overtime-msg">Available after 16:00</div>
+        </div>
+    </div>
+
+    <!-- HISTORY SECTION -->
+    <div id="history-section" class="spa-section" style="display: none;">
+        <h5 class="fw-bold text-wine mb-3">Recent Activity</h5>
+        <div class="list-group list-group-flush rounded-3 card-glass" id="history-list">
+             <!-- Populated via JS -->
+             <div class="text-center p-4">Loading...</div>
+        </div>
+    </div>
+
+    <!-- PROFILE SECTION -->
+    <div id="profile-section" class="spa-section" style="display: none;">
+        <div class="card card-glass p-4 text-center">
+            <div class="bg-wine text-white rounded-circle d-flex align-items-center justify-content-center mx-auto mb-3" style="width: 80px; height: 80px; font-size: 2rem;">
+                {{ user_name[0] }}
+            </div>
+            <h4 class="fw-bold mb-0">{{ user_name }}</h4>
+            <p class="text-muted">{{ role }}</p>
+
+            <hr>
+
+            <div class="d-grid gap-2">
+                {% if role in ['ADMIN', 'SPV'] %}
+                <a href="/export" class="btn btn-outline-success">
+                    <i class="fas fa-file-excel me-2"></i>Download Reports
+                </a>
+                {% endif %}
+                <a href="/logout" class="btn btn-outline-danger">
+                    <i class="fas fa-sign-out-alt me-2"></i>Logout
+                </a>
+            </div>
+        </div>
+    </div>
+
+</div>
+
+<!-- Bottom Navigation -->
+<div class="bottom-nav">
+    <a href="#" class="nav-item active" data-target="home-section">
+        <i class="fas fa-house"></i> Home
+    </a>
+    <a href="#" class="nav-item" data-target="history-section">
+        <i class="fas fa-calendar-check"></i> History
+    </a>
+    <a href="#" class="nav-item" data-target="profile-section">
+        <i class="fas fa-user"></i> Profile
+    </a>
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+    // --- STATE ---
+    let currentShift = null;
+    let locationData = { lat: null, lng: null };
+    let cameraStream = null;
+    let isOvertimeEnabled = {{ 'true' if overtime_enabled else 'false' }};
+
+    // --- UI ELEMENTS ---
+    const sections = document.querySelectorAll('.spa-section');
+    const navItems = document.querySelectorAll('.nav-item');
+    const video = document.getElementById('camera-stream');
+    const btnCheckIn = document.getElementById('btn-check-in');
+    const btnCheckOut = document.getElementById('btn-check-out');
+    const shiftBtns = document.querySelectorAll('.shift-btn');
+    const overtimeToggle = document.getElementById('overtimeToggle');
+    const overtimeMsg = document.getElementById('overtime-msg');
+    const statusDisplay = document.getElementById('status-display');
+
+    // --- INIT ---
+    document.addEventListener('DOMContentLoaded', () => {
+        initCamera();
+        initLocation();
+        startClock();
+        fetchStatus();
+
+        // Tab Switching
+        navItems.forEach(item => {
+            item.addEventListener('click', (e) => {
+                e.preventDefault();
+                // Update Nav
+                navItems.forEach(n => n.classList.remove('active'));
+                item.classList.add('active'); // Add to clicked, or closest a tag
+
+                // Show Section
+                const targetId = item.getAttribute('data-target');
+                sections.forEach(s => s.style.display = 'none');
+                document.getElementById(targetId).style.display = 'block';
+
+                // Refresh data if needed
+                if(targetId === 'history-section') fetchHistory();
+            });
+        });
+
+        // Shift Selection
+        shiftBtns.forEach(btn => {
+            btn.addEventListener('click', () => {
+                // Remove active from all
+                shiftBtns.forEach(b => {
+                    b.classList.remove('btn-wine', 'text-white');
+                    b.classList.add('btn-outline-secondary');
+                });
+                // Add active to clicked
+                btn.classList.remove('btn-outline-secondary');
+                btn.classList.add('btn-wine', 'text-white');
+
+                currentShift = btn.getAttribute('data-shift');
+                checkFormValidity();
+            });
+        });
+
+        // Actions
+        btnCheckIn.addEventListener('click', performCheckIn);
+        btnCheckOut.addEventListener('click', performCheckOut);
+    });
+
+    // --- FUNCTIONS ---
+
+    function startClock() {
+        setInterval(() => {
+            const now = new Date();
+            const timeString = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+            document.getElementById('live-time').innerText = timeString;
+        }, 1000);
+    }
+
+    async function initCamera() {
+        try {
+            cameraStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user' } });
+            video.srcObject = cameraStream;
+            document.getElementById('camera-loading').style.display = 'none';
+        } catch (err) {
+            console.error("Camera error", err);
+            Swal.fire('Error', 'Camera access is required for attendance.', 'error');
+        }
+    }
+
+    function initLocation() {
+        if (navigator.geolocation) {
+            navigator.geolocation.getCurrentPosition(
+                (pos) => {
+                    locationData.lat = pos.coords.latitude;
+                    locationData.lng = pos.coords.longitude;
+                    checkFormValidity();
+                },
+                (err) => {
+                    console.error("Geo error", err);
+                    Swal.fire('Warning', 'Location access is needed. Please enable GPS.', 'warning');
+                }
+            );
+        } else {
+            Swal.fire('Error', 'Geolocation is not supported by this browser.', 'error');
+        }
+    }
+
+    function capturePhoto() {
+        const canvas = document.getElementById('camera-canvas');
+        canvas.width = video.videoWidth;
+        canvas.height = video.videoHeight;
+        const ctx = canvas.getContext('2d');
+        // Flip horizontally to match preview
+        ctx.translate(canvas.width, 0);
+        ctx.scale(-1, 1);
+        ctx.drawImage(video, 0, 0);
+        return canvas.toDataURL('image/jpeg');
+    }
+
+    async function fetchStatus() {
+        try {
+            const res = await fetch('/api/status');
+            const data = await res.json();
+
+            updateUI(data);
+        } catch (err) {
+            console.error(err);
+        }
+    }
+
+    function updateUI(data) {
+        // Status Display
+        let html = '';
+        if (data.status === 'CheckedIn') {
+            html = `<h3 class="text-success fw-bold">CHECKED IN</h3>
+                    <p class="mb-0">Shift: ${data.shift}</p>
+                    <p class="small text-muted">In at: ${data.check_in_time}</p>`;
+
+            // Hide Check In controls, Show Check Out
+            btnCheckIn.style.display = 'none';
+            btnCheckOut.style.display = 'block';
+            document.querySelector('.row.g-2').style.display = 'none'; // Hide shifts
+
+        } else if (data.status === 'CheckedOut') {
+            html = `<h3 class="text-wine fw-bold">COMPLETED</h3>
+                    <p class="mb-0">You are done for today.</p>
+                    <p class="small text-muted">Out at: ${data.check_out_time}</p>`;
+
+            btnCheckIn.style.display = 'none';
+            btnCheckOut.style.display = 'none';
+            document.querySelector('.row.g-2').style.display = 'none';
+
+        } else {
+            html = `<h3 class="text-muted fw-bold">NOT STARTED</h3>
+                    <p class="small text-muted">Select shift to begin</p>`;
+
+            btnCheckIn.style.display = 'block';
+            btnCheckOut.style.display = 'none';
+            document.querySelector('.row.g-2').style.display = 'flex';
+        }
+        statusDisplay.innerHTML = html;
+
+        // Overtime Logic
+        isOvertimeEnabled = data.overtime_enabled;
+        if (isOvertimeEnabled) {
+            overtimeToggle.disabled = false;
+            overtimeMsg.innerText = "You can enable overtime now.";
+            overtimeMsg.classList.add("text-success");
+            overtimeMsg.classList.remove("text-muted");
+        } else {
+            overtimeToggle.disabled = true;
+        }
+    }
+
+    function checkFormValidity() {
+        if (btnCheckIn.style.display !== 'none') {
+            if (currentShift && locationData.lat) {
+                btnCheckIn.disabled = false;
+            } else {
+                btnCheckIn.disabled = true;
+            }
+        }
+    }
+
+    async function performCheckIn() {
+        const photo = capturePhoto();
+
+        Swal.fire({
+            title: 'Processing...',
+            text: 'Verifying location and uploading...',
+            allowOutsideClick: false,
+            didOpen: () => Swal.showLoading()
+        });
+
+        try {
+            const res = await fetch('/api/check_in', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    shift: currentShift,
+                    photo: photo,
+                    lat: locationData.lat,
+                    lng: locationData.lng
+                })
+            });
+            const result = await res.json();
+
+            if (result.success) {
+                Swal.fire('Success', 'Check-in confirmed!', 'success');
+                fetchStatus();
+            } else {
+                Swal.fire('Error', result.message, 'error');
+            }
+        } catch (err) {
+            Swal.fire('Error', 'Network error occurred', 'error');
+        }
+    }
+
+    async function performCheckOut() {
+        const photo = capturePhoto();
+        const isOvertime = overtimeToggle.checked;
+
+        Swal.fire({
+            title: 'Processing...',
+            text: 'Finalizing attendance...',
+            allowOutsideClick: false,
+            didOpen: () => Swal.showLoading()
+        });
+
+        try {
+            const res = await fetch('/api/check_out', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    photo: photo,
+                    lat: locationData.lat,
+                    lng: locationData.lng,
+                    is_overtime: isOvertime
+                })
+            });
+            const result = await res.json();
+
+            if (result.success) {
+                Swal.fire('Success', 'Check-out confirmed. Have a good rest!', 'success');
+                fetchStatus();
+            } else {
+                Swal.fire('Error', result.message, 'error');
+            }
+        } catch (err) {
+            Swal.fire('Error', 'Network error occurred', 'error');
+        }
+    }
+
+    async function fetchHistory() {
+        const list = document.getElementById('history-list');
+        try {
+            const res = await fetch('/api/history');
+            const data = await res.json();
+
+            let html = '';
+            if (data.length === 0) {
+                html = '<div class="text-center p-3 text-muted">No history found.</div>';
+            } else {
+                data.forEach(item => {
+                    let badgeClass = item.status === 'Hadir' ? 'bg-success' : 'bg-warning';
+                    html += `
+                        <div class="list-group-item d-flex justify-content-between align-items-center">
+                            <div>
+                                <div class="fw-bold">${item.date}</div>
+                                <small class="text-muted">${item.shift} (${item.in} - ${item.out})</small>
+                            </div>
+                            <span class="badge ${badgeClass} rounded-pill">${item.status}</span>
+                        </div>
+                    `;
+                });
+            }
+            list.innerHTML = html;
+        } catch (err) {
+            list.innerHTML = '<div class="text-danger p-3">Failed to load history</div>';
+        }
+    }
+</script>
+{% endblock %}
