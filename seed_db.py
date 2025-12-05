@@ -1,41 +1,35 @@
 from app import app, db, User
-import os
+from werkzeug.security import generate_password_hash
 
 def seed():
-    print("Starting Database Seeding...")
-    # Setup context
+    print(">>> MEMULAI RESET DATABASE TOTAL...")
     with app.app_context():
-        # Create Tables
+        db.drop_all()
         db.create_all()
-        print("Tables created.")
+        print(">>> TABEL BERHASIL DIBUAT ULANG.")
 
-        # Check if users exist
-        if not User.query.filter_by(username='admin').first():
-            print("Creating Admin User...")
-            admin = User(username='admin', role='ADMIN', full_name='Administrator')
-            admin.set_password('admin123')
-            db.session.add(admin)
-        else:
-            print("Admin already exists.")
+        # 1. OWNER (Pusat, No Absen)
+        owner = User(username='owner', full_name='Big Boss', role='OWNER', branch='Pusat', is_approved=True)
+        owner.set_password('123')
+        db.session.add(owner)
 
-        if not User.query.filter_by(username='spv').first():
-            print("Creating SPV User...")
-            spv = User(username='spv', role='SPV', full_name='Supervisor Wine')
-            spv.set_password('spv123')
-            db.session.add(spv)
+        # 2. MANAGER (Pusat, Wajib Absen, Lihat Semua)
+        manager = User(username='manager', full_name='General Manager', role='MANAGER', branch='Pusat', is_approved=True)
+        manager.set_password('123')
+        db.session.add(manager)
 
-        if not User.query.filter_by(username='staff').first():
-            print("Creating Staff User...")
-            staff = User(username='staff', role='STAFF', full_name='Staff Member')
-            staff.set_password('staff123')
-            db.session.add(staff)
+        # 3. SPV (Cabang, Wajib Absen, Lihat Cabang Sendiri)
+        spv = User(username='spv_jakbar', full_name='SPV Jakarta Barat', role='SPV', branch='Jakbar', is_approved=True)
+        spv.set_password('123')
+        db.session.add(spv)
+
+        # 4. STAFF
+        staff = User(username='maryam', full_name='Maryam', role='STAFF', branch='Jakbar', is_approved=True)
+        staff.set_password('123')
+        db.session.add(staff)
 
         db.session.commit()
-        print("Database Seeded Successfully!")
-        print("Credentials:")
-        print("  Admin: admin / admin123")
-        print("  SPV: spv / spv123")
-        print("  Staff: staff / staff123")
+        print(">>> SUKSES! Login: owner / 123")
 
 if __name__ == '__main__':
     seed()

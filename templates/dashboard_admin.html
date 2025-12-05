@@ -1,237 +1,32 @@
 {% extends "base.html" %}
-
 {% block content %}
-<!-- Admin Dashboard: Owner, Manager, SPV -->
-<div class="container-fluid pb-5">
-
-    <!-- Top Bar -->
-    <div class="d-flex justify-content-between align-items-center py-3 border-bottom mb-3">
-        <div>
-            <h5 class="fw-bold text-wine mb-0">{{ user_name }}</h5>
-            <span class="badge bg-wine">{{ role }}</span>
-            {% if role == 'SPV' %}<span class="badge bg-gold text-dark">{{ session['user_branch'] }}</span>{% endif %}
-        </div>
-        <div>
-            <a href="/logout" class="btn btn-sm btn-outline-danger">Logout</a>
-        </div>
+<div class="container-fluid pt-4">
+    <div class="d-flex justify-content-between mb-4">
+        <div><h5 class="fw-bold text-wine mb-0">{{ user_name }}</h5><span class="badge bg-wine">{{ role }}</span></div>
+        <div><a href="/admin" class="btn btn-sm btn-outline-dark">Jadwal</a> <a href="/logout" class="btn btn-sm btn-outline-danger">Logout</a></div>
     </div>
 
-    <!-- 1. APPROVAL SECTION (Owner/Manager Only) -->
-    {% if role in ['OWNER', 'MANAGER'] %}
-    <div class="card card-glass mb-4">
-        <div class="card-header bg-transparent fw-bold text-wine">
-            <i class="fas fa-user-plus me-2"></i>New User Approvals
-        </div>
-        <div class="card-body p-0">
-            {% if pending_users %}
-            <div class="table-responsive">
-                <table class="table table-hover mb-0 align-middle">
-                    <thead class="table-light">
-                        <tr>
-                            <th>Name</th>
-                            <th>Role</th>
-                            <th>Branch</th>
-                            <th>Action</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {% for u in pending_users %}
-                        <tr>
-                            <td>{{ u.full_name }}<br><small class="text-muted">@{{ u.username }}</small></td>
-                            <td>{{ u.role }}</td>
-                            <td>{{ u.branch or 'All' }}</td>
-                            <td>
-                                <form action="{{ url_for('approve_user', user_id=u.id) }}" method="POST">
-                                    <button class="btn btn-sm btn-success">Approve</button>
-                                </form>
-                            </td>
-                        </tr>
-                        {% endfor %}
-                    </tbody>
-                </table>
-            </div>
-            {% else %}
-            <div class="p-3 text-muted text-center small">No pending approvals.</div>
-            {% endif %}
-        </div>
+    {% if pending_users %}
+    <div class="card card-glass mb-4 border-warning"><div class="card-header fw-bold text-wine">Approval</div>
+        <table class="table table-borderless small mb-0">{% for u in pending_users %}<tr><td>{{ u.full_name }} ({{ u.role }})</td><td class="text-end"><form action="/approve_user/{{ u.id }}" method="POST"><button class="btn btn-sm btn-success">ACC</button></form></td></tr>{% endfor %}</table>
     </div>
     {% endif %}
 
-    <!-- 2. MONITORING SECTION (All Admins) -->
-    <div class="card card-glass mb-4">
-        <div class="card-header bg-transparent fw-bold text-wine d-flex justify-content-between align-items-center">
-            <span><i class="fas fa-eye me-2"></i>Live Monitoring (Today)</span>
-            <span class="badge bg-secondary">{{ server_date }}</span>
-        </div>
+    <div class="card card-glass">
+        <div class="card-header fw-bold text-wine d-flex justify-content-between"><span>Monitoring</span> <a href="/export" class="text-success small">Excel</a></div>
         <div class="table-responsive">
-            <table class="table table-hover mb-0 align-middle small">
-                <thead class="table-light">
-                    <tr>
-                        <th>Staff</th>
-                        <th>Shift</th>
-                        <th>In/Out</th>
-                        <th>Status</th>
-                        <th>Overtime</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {% if monitoring_data %}
-                        {% for row in monitoring_data %}
-                        <tr>
-                            <td>
-                                <span class="fw-bold">{{ row.name }}</span><br>
-                                <span class="text-muted">{{ row.branch }}</span>
-                            </td>
-                            <td>{{ row.shift }}</td>
-                            <td>{{ row.in }} - {{ row.out }}</td>
-                            <td>
-                                {% if row.status == 'Hadir' %}<span class="text-success">Hadir</span>
-                                {% else %}<span class="text-danger">{{ row.status }}</span>{% endif %}
-                            </td>
-                            <td>
-                                {% if row.is_overtime %}
-                                    <span class="badge bg-success">Approved</span>
-                                {% elif row.potential_overtime %}
-                                    <div class="d-flex align-items-center">
-                                        <span class="text-warning me-2">{{ row.potential_overtime }}</span>
-                                        <form action="{{ url_for('approve_overtime', att_id=row.id) }}" method="POST">
-                                            <button class="btn btn-sm btn-outline-primary py-0" style="font-size: 0.7rem;">ACC</button>
-                                        </form>
-                                    </div>
-                                {% else %}
-                                    -
-                                {% endif %}
-                            </td>
-                        </tr>
-                        {% endfor %}
-                    {% else %}
-                        <tr><td colspan="5" class="text-center p-3 text-muted">No attendance activity yet today.</td></tr>
-                    {% endif %}
-                </tbody>
-            </table>
-        </div>
-        <div class="card-footer bg-transparent">
-             <a href="{{ url_for('export') }}" class="btn btn-sm btn-outline-success w-100">
-                 <i class="fas fa-file-excel me-1"></i> Download Report (Branch Filtered)
-             </a>
+            <table class="table table-hover align-middle small mb-0"><thead class="table-light"><tr><th>Nama</th><th>Shift</th><th>Waktu</th><th>Foto</th><th>Act</th></tr></thead>
+            <tbody>{% for row in monitoring_data %}<tr>
+                <td><strong>{{ row.name }}</strong><br><span class="text-muted">{{ row.branch }}</span></td>
+                <td>{{ row.shift }}</td>
+                <td>{{ row.in }}<br>{{ row.out }}</td>
+                <td>
+                    {% if row.photo_in %}<button class="btn btn-sm btn-outline-wine py-0" onclick="showPhoto('{{ row.photo_in }}','IN')">IN</button>{% endif %}
+                    {% if row.photo_out %}<button class="btn btn-sm btn-outline-danger py-0" onclick="showPhoto('{{ row.photo_out }}','OUT')">OUT</button>{% endif %}
+                </td>
+                <td>{% if row.potential_overtime and not row.is_overtime %}<form action="/approve_overtime/{{ row.id }}" method="POST"><button class="btn btn-sm btn-outline-primary py-0">ACC Lembur</button></form>{% endif %}</td>
+            </tr>{% else %}<tr><td colspan="5" class="text-center p-3">Kosong</td></tr>{% endfor %}</tbody></table>
         </div>
     </div>
-
-    <!-- 3. ATTENDANCE UI (Manager & SPV Only - Owner Hides) -->
-    {% if role != 'OWNER' %}
-    <hr>
-    <h6 class="fw-bold text-wine mb-3"><i class="fas fa-camera me-2"></i>Your Attendance</h6>
-
-    <!-- Reuse Dashboard Staff Logic via Include or Copy-Paste? Copied for strict separation/customization -->
-    <div id="admin-attendance-panel">
-         <!-- Status Card -->
-        <div class="card card-glass p-3 text-center mb-3">
-            <div id="status-display">Loading...</div>
-        </div>
-
-        <!-- Camera -->
-        <div class="card card-glass p-2 mb-3 overflow-hidden position-relative" style="height: 250px;">
-            <video id="camera-stream" autoplay playsinline muted style="width: 100%; height: 100%; object-fit: cover; border-radius: 10px; transform: scaleX(-1);"></video>
-            <canvas id="camera-canvas" style="display: none;"></canvas>
-        </div>
-
-        <!-- Buttons -->
-        <div class="row g-2 mb-3" id="shift-buttons">
-            <div class="col-4"><button class="btn btn-outline-secondary w-100 py-2 shift-btn" data-shift="Pagi">Pagi</button></div>
-            <div class="col-4"><button class="btn btn-outline-secondary w-100 py-2 shift-btn" data-shift="Siang">Siang</button></div>
-            <div class="col-4"><button class="btn btn-outline-secondary w-100 py-2 shift-btn" data-shift="Sore">Sore</button></div>
-        </div>
-
-        <button id="btn-check-in" class="btn btn-wine w-100 py-3 mb-2 fw-bold" disabled>CHECK IN</button>
-        <button id="btn-check-out" class="btn btn-danger w-100 py-3 fw-bold" style="display: none;">CHECK OUT</button>
-    </div>
-    {% endif %}
-
 </div>
-
-{% block scripts %}
-<script>
-    // Minimal JS for Admin Dashboard Attendance
-    // Only runs if #admin-attendance-panel exists
-    const panel = document.getElementById('admin-attendance-panel');
-    if (panel) {
-        let currentShift = null;
-        let locationData = { lat: null, lng: null };
-        const video = document.getElementById('camera-stream');
-
-        // Init Camera
-        navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user' } })
-            .then(stream => video.srcObject = stream)
-            .catch(err => console.error(err));
-
-        // Init Geo
-        navigator.geolocation.getCurrentPosition(pos => {
-            locationData.lat = pos.coords.latitude;
-            locationData.lng = pos.coords.longitude;
-        });
-
-        // Buttons
-        document.querySelectorAll('.shift-btn').forEach(btn => {
-            btn.addEventListener('click', () => {
-                document.querySelectorAll('.shift-btn').forEach(b => b.classList.remove('btn-wine', 'text-white'));
-                btn.classList.add('btn-wine', 'text-white');
-                currentShift = btn.getAttribute('data-shift');
-                document.getElementById('btn-check-in').disabled = false;
-            });
-        });
-
-        // API Calls (Simplified)
-        async function fetchStatus() {
-            const res = await fetch('/api/status');
-            const data = await res.json();
-            const disp = document.getElementById('status-display');
-
-            if (data.status === 'CheckedIn') {
-                disp.innerHTML = `<span class="text-success fw-bold">CHECKED IN (${data.shift})</span> <br> <small>${data.check_in_time}</small>`;
-                document.getElementById('btn-check-in').style.display = 'none';
-                document.getElementById('btn-check-out').style.display = 'block';
-                document.getElementById('shift-buttons').style.display = 'none';
-            } else if (data.status === 'CheckedOut') {
-                 disp.innerHTML = `<span class="text-wine fw-bold">COMPLETED</span> <br> <small>${data.check_out_time}</small>`;
-                 document.getElementById('btn-check-in').style.display = 'none';
-                 document.getElementById('btn-check-out').style.display = 'none';
-                 document.getElementById('shift-buttons').style.display = 'none';
-            } else {
-                 disp.innerHTML = "Select Shift";
-            }
-        }
-
-        document.getElementById('btn-check-in').addEventListener('click', async () => {
-             const canvas = document.getElementById('camera-canvas');
-             canvas.width = video.videoWidth; canvas.height = video.videoHeight;
-             canvas.getContext('2d').drawImage(video, 0, 0);
-             const photo = canvas.toDataURL('image/jpeg');
-
-             await fetch('/api/check_in', {
-                 method: 'POST', headers: {'Content-Type': 'application/json'},
-                 body: JSON.stringify({shift: currentShift, photo, lat: locationData.lat, lng: locationData.lng})
-             });
-             fetchStatus();
-             window.location.reload(); // Refresh monitoring table too
-        });
-
-        document.getElementById('btn-check-out').addEventListener('click', async () => {
-             const canvas = document.getElementById('camera-canvas');
-             canvas.width = video.videoWidth; canvas.height = video.videoHeight;
-             canvas.getContext('2d').drawImage(video, 0, 0);
-             const photo = canvas.toDataURL('image/jpeg');
-
-             await fetch('/api/check_out', {
-                 method: 'POST', headers: {'Content-Type': 'application/json'},
-                 body: JSON.stringify({photo, lat: locationData.lat, lng: locationData.lng})
-             });
-             fetchStatus();
-             window.location.reload();
-        });
-
-        fetchStatus();
-    }
-</script>
-{% endblock %}
-
 {% endblock %}

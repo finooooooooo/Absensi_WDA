@@ -1,133 +1,22 @@
 {% extends "base.html" %}
-
 {% block content %}
-<div class="container mt-4 mb-5">
-    <!-- Header -->
-    <div class="d-flex justify-content-between align-items-center mb-4">
-        <div>
-            <h4 class="fw-bold text-wine">Kelola Libur & Izin</h4>
-            <small class="text-muted">Manage user schedules and leaves</small>
-        </div>
-        <a href="{{ url_for('dashboard') }}" class="btn btn-outline-secondary btn-sm">
-            <i class="fas fa-arrow-left me-1"></i> Back
-        </a>
+<div class="container pt-4">
+    <div class="d-flex justify-content-between mb-4">
+        <h5 class="fw-bold text-wine">Kelola Jadwal & Libur</h5>
+        <a href="/dashboard" class="btn btn-sm btn-outline-dark">Kembali</a>
     </div>
-
-    <!-- Form Card -->
     <div class="card card-glass p-4 mb-4">
-        <h5 class="fw-bold text-wine mb-3"><i class="fas fa-plus-circle me-2"></i>Set New Schedule</h5>
-        <form action="{{ url_for('add_schedule') }}" method="POST">
-            <div class="row g-3">
-                <!-- User Select -->
-                <div class="col-md-4">
-                    <label class="form-label small text-muted">Employee</label>
-                    <select class="form-select" name="user_id" required>
-                        <option value="" selected disabled>Select Employee...</option>
-                        <option value="global" class="fw-bold text-danger">-- SEMUA KARYAWAN (Global) --</option>
-                        {% for user in users %}
-                            {% if user.role != 'ADMIN' %}
-                            <option value="{{ user.id }}">{{ user.full_name }} ({{ user.role }})</option>
-                            {% endif %}
-                        {% endfor %}
-                    </select>
-                </div>
-
-                <!-- Date Select -->
-                <div class="col-md-4">
-                    <label class="form-label small text-muted">Date</label>
-                    <input type="date" class="form-control" name="date" required>
-                </div>
-
-                <!-- Status Select -->
-                <div class="col-md-4">
-                    <label class="form-label small text-muted">Status Type</label>
-                    <div class="d-flex gap-3 mt-2">
-                        <div class="form-check">
-                            <input class="form-check-input" type="radio" name="status" id="statusOFF" value="OFF" checked>
-                            <label class="form-check-label" for="statusOFF">Libur</label>
-                        </div>
-                        <div class="form-check">
-                            <input class="form-check-input" type="radio" name="status" id="statusSAKIT" value="SAKIT">
-                            <label class="form-check-label" for="statusSAKIT">Sakit</label>
-                        </div>
-                        <div class="form-check">
-                            <input class="form-check-input" type="radio" name="status" id="statusIZIN" value="IZIN">
-                            <label class="form-check-label" for="statusIZIN">Izin</label>
-                        </div>
-                        <div class="form-check">
-                            <input class="form-check-input" type="radio" name="status" id="statusCUTI" value="CUTI">
-                            <label class="form-check-label" for="statusCUTI">Cuti</label>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Description -->
-                <div class="col-12">
-                    <label class="form-label small text-muted">Description (Optional)</label>
-                    <input type="text" class="form-control" name="description" placeholder="e.g., Sakit demam, Acara keluarga...">
-                </div>
-
-                <!-- Submit -->
-                <div class="col-12 text-end">
-                    <button type="submit" class="btn btn-wine px-4">
-                        <i class="fas fa-check me-2"></i>Set Status
-                    </button>
-                </div>
-            </div>
+        <form action="/add_schedule" method="POST">
+            <select class="form-select mb-2" name="user_id" required>
+                <option value="global" class="text-danger fw-bold">-- LIBUR GLOBAL --</option>
+                {% for u in users %}{% if u.role!='OWNER' %}<option value="{{ u.id }}">{{ u.full_name }} ({{ u.branch }})</option>{% endif %}{% endfor %}
+            </select>
+            <input type="date" class="form-control mb-2" name="date" required>
+            <select class="form-select mb-2" name="status"><option value="OFF">OFF</option><option value="SAKIT">SAKIT</option><option value="IZIN">IZIN</option></select>
+            <input type="text" class="form-control mb-3" name="description" placeholder="Keterangan">
+            <button class="btn btn-wine w-100">Simpan</button>
         </form>
     </div>
-
-    <!-- List Table -->
-    <div class="card card-glass p-4">
-        <h5 class="fw-bold text-wine mb-3"><i class="fas fa-calendar-alt me-2"></i>Upcoming Schedules</h5>
-        <div class="table-responsive">
-            <table class="table table-hover align-middle">
-                <thead class="table-light">
-                    <tr>
-                        <th>Date</th>
-                        <th>Employee</th>
-                        <th>Status</th>
-                        <th>Description</th>
-                        <th class="text-end">Action</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {% if schedules %}
-                        {% for sched in schedules %}
-                        <tr>
-                            <td>{{ sched.date.strftime('%d %b %Y') }}</td>
-                            <td>
-                                {% if sched.user_id %}
-                                    <span class="fw-bold text-dark">{{ sched.user.full_name }}</span>
-                                {% else %}
-                                    <span class="badge bg-danger">SEMUA KARYAWAN</span>
-                                {% endif %}
-                            </td>
-                            <td>
-                                {% if sched.status == 'OFF' %} <span class="badge bg-secondary">OFF / LIBUR</span>
-                                {% elif sched.status == 'SAKIT' %} <span class="badge bg-warning text-dark">SAKIT</span>
-                                {% elif sched.status == 'IZIN' %} <span class="badge bg-info text-dark">IZIN</span>
-                                {% elif sched.status == 'CUTI' %} <span class="badge bg-primary">CUTI</span>
-                                {% endif %}
-                            </td>
-                            <td class="text-muted small">{{ sched.description or '-' }}</td>
-                            <td class="text-end">
-                                <form action="{{ url_for('delete_schedule', id=sched.id) }}" method="POST" onsubmit="return confirm('Delete this schedule?');">
-                                    <button type="submit" class="btn btn-sm btn-outline-danger border-0">
-                                        <i class="fas fa-trash-alt"></i>
-                                    </button>
-                                </form>
-                            </td>
-                        </tr>
-                        {% endfor %}
-                    {% else %}
-                        <tr>
-                            <td colspan="5" class="text-center py-4 text-muted">No upcoming schedules found.</td>
-                        </tr>
-                    {% endif %}
-                </tbody>
-            </table>
-        </div>
-    </div>
+    <div class="card card-glass"><table class="table table-hover mb-0">{% for s in schedules %}<tr><td>{{ s.date }}</td><td>{{ s.user.full_name if s.user else 'GLOBAL' }}</td><td>{{ s.status }}</td><td><form action="/delete_schedule/{{ s.id }}" method="POST"><button class="btn btn-sm btn-outline-danger">X</button></form></td></tr>{% endfor %}</table></div>
 </div>
 {% endblock %}

@@ -1,166 +1,69 @@
 {% extends "base.html" %}
-
 {% block content %}
-<div class="container mt-4 mb-5" style="max-width: 500px;">
-    <!-- Header -->
-    <div class="d-flex justify-content-between align-items-center mb-4">
-        <div>
-            <h5 class="fw-bold text-wine mb-0">Hello, {{ user_name }}</h5>
-            <small class="text-muted">{{ server_date }}</small>
-        </div>
-        <a href="/logout" class="btn btn-sm btn-outline-danger">
-            <i class="fas fa-sign-out-alt"></i>
-        </a>
+<div id="home-section" class="container pt-4">
+    <div class="d-flex justify-content-between align-items-center mb-3">
+        <h5 class="fw-bold text-wine">Halo, {{ user_name }}</h5>
+        <a href="/logout" class="text-danger"><i class="fas fa-sign-out-alt"></i></a>
     </div>
-
-    <!-- Status Card -->
-    <div class="card card-glass p-4 text-center mb-4">
-        <h6 class="text-muted mb-3">Attendance Status</h6>
-        <div id="status-display">
-            <div class="spinner-border text-wine" role="status"></div>
-        </div>
+    <div class="card card-glass p-3 mb-3 text-center"><div id="status-display" class="fw-bold text-muted">Loading...</div></div>
+    <div class="card card-glass p-1 mb-3 overflow-hidden position-relative" style="height:300px;">
+        <video id="video" autoplay playsinline muted style="width:100%;height:100%;object-fit:cover;transform:scaleX(-1);border-radius:15px;"></video>
+        <canvas id="canvas" style="display:none;"></canvas>
     </div>
-
-    <!-- Camera -->
-    <div class="card card-glass p-2 mb-4 overflow-hidden position-relative" style="height: 350px;">
-        <video id="camera-stream" autoplay playsinline muted style="width: 100%; height: 100%; object-fit: cover; border-radius: 15px; transform: scaleX(-1);"></video>
-        <div class="position-absolute top-50 start-50 translate-middle text-white" id="camera-loading">
-            <i class="fas fa-camera fa-2x"></i>
-        </div>
-        <canvas id="camera-canvas" style="display: none;"></canvas>
+    <div id="shift-buttons" class="row g-2 mb-2">
+        <div class="col-4"><button class="btn btn-outline-secondary w-100 py-3 shift-btn" data-shift="Pagi">Pagi</button></div>
+        <div class="col-4"><button class="btn btn-outline-secondary w-100 py-3 shift-btn" data-shift="Siang">Siang</button></div>
+        <div class="col-4"><button class="btn btn-outline-secondary w-100 py-3 shift-btn" data-shift="Sore">Sore</button></div>
     </div>
-
-    <!-- Controls -->
-    <div class="row g-2 mb-3" id="shift-buttons">
-        <div class="col-4">
-            <button class="btn btn-outline-secondary w-100 py-3 shift-btn" data-shift="Pagi">
-                <i class="fas fa-sun mb-1"></i><br>Pagi
-            </button>
-        </div>
-        <div class="col-4">
-            <button class="btn btn-outline-secondary w-100 py-3 shift-btn" data-shift="Siang">
-                <i class="fas fa-cloud-sun mb-1"></i><br>Siang
-            </button>
-        </div>
-        <div class="col-4">
-            <button class="btn btn-outline-secondary w-100 py-3 shift-btn" data-shift="Sore">
-                <i class="fas fa-moon mb-1"></i><br>Sore
-            </button>
-        </div>
-    </div>
-
-    <button id="btn-check-in" class="btn btn-wine w-100 py-3 mb-3 fw-bold shadow-sm" disabled>CHECK IN</button>
-    <button id="btn-check-out" class="btn btn-danger w-100 py-3 fw-bold shadow-sm mb-3" style="display: none;">CHECK OUT</button>
-
+    <button id="btn-in" class="btn btn-wine w-100 py-3 mb-2 fw-bold" disabled>CHECK IN</button>
+    <button id="btn-out" class="btn btn-danger w-100 py-3 mb-2 fw-bold" style="display:none;">CHECK OUT</button>
 </div>
 
-{% block scripts %}
-<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+<div id="history-section" class="container pt-4" style="display:none;">
+    <h5 class="fw-bold text-wine mb-3">Riwayat</h5>
+    <div id="history-list" class="list-group list-group-flush rounded-3 card-glass"></div>
+</div>
+
+<div class="bottom-nav">
+    <div class="nav-item active" onclick="switchTab('home',this)"><i class="fas fa-home"></i>Home</div>
+    <div class="nav-item" onclick="switchTab('history',this)"><i class="fas fa-history"></i>History</div>
+</div>
+
 <script>
-    let currentShift = null;
-    let locationData = { lat: null, lng: null };
-    const video = document.getElementById('camera-stream');
-
-    // Camera
-    navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user' } })
-        .then(stream => {
-            video.srcObject = stream;
-            document.getElementById('camera-loading').style.display = 'none';
-        })
-        .catch(err => Swal.fire('Error', 'Camera access denied', 'error'));
-
-    // Location
-    if (navigator.geolocation) {
-        navigator.geolocation.getCurrentPosition(
-            pos => {
-                locationData.lat = pos.coords.latitude;
-                locationData.lng = pos.coords.longitude;
-            },
-            err => Swal.fire('Warning', 'GPS access denied', 'warning')
-        );
+    let currentShift=null; let loc={lat:null,lng:null}; const video=document.getElementById('video');
+    navigator.mediaDevices.getUserMedia({video:{facingMode:'user'}}).then(s=>video.srcObject=s);
+    navigator.geolocation.getCurrentPosition(p=>{loc.lat=p.coords.latitude;loc.lng=p.coords.longitude;});
+    
+    function switchTab(t,e){
+        document.getElementById('home-section').style.display=t==='home'?'block':'none';
+        document.getElementById('history-section').style.display=t==='history'?'block':'none';
+        document.querySelectorAll('.nav-item').forEach(n=>n.classList.remove('active')); e.classList.add('active');
+        if(t==='history') loadHistory();
     }
-
-    // Shift Selection
-    document.querySelectorAll('.shift-btn').forEach(btn => {
-        btn.addEventListener('click', () => {
-            document.querySelectorAll('.shift-btn').forEach(b => {
-                b.classList.remove('btn-wine', 'text-white');
-                b.classList.add('btn-outline-secondary');
-            });
-            btn.classList.remove('btn-outline-secondary');
-            btn.classList.add('btn-wine', 'text-white');
-            currentShift = btn.getAttribute('data-shift');
-            document.getElementById('btn-check-in').disabled = false;
-        });
+    document.querySelectorAll('.shift-btn').forEach(b=>{b.onclick=()=>{
+        document.querySelectorAll('.shift-btn').forEach(x=>x.classList.remove('btn-wine','text-white'));
+        b.classList.add('btn-wine','text-white'); currentShift=b.getAttribute('data-shift');
+        document.getElementById('btn-in').disabled=false;
+    }});
+    async function send(type){
+        const cvs=document.getElementById('canvas'); cvs.width=video.videoWidth; cvs.height=video.videoHeight;
+        cvs.getContext('2d').drawImage(video,0,0);
+        const res=await fetch('/api/'+type,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({shift:currentShift,photo:cvs.toDataURL('image/jpeg'),lat:loc.lat,lng:loc.lng})});
+        const d=await res.json(); if(d.success){Swal.fire('Sukses','','success').then(()=>location.reload());}else{Swal.fire('Gagal',d.message,'error');}
+    }
+    document.getElementById('btn-in').onclick=()=>send('check_in'); document.getElementById('btn-out').onclick=()=>send('check_out');
+    
+    fetch('/api/status').then(r=>r.json()).then(d=>{
+        const disp=document.getElementById('status-display');
+        if(d.status==='CheckedIn'){disp.innerHTML=`<span class="text-success">Sudah Check-In (${d.shift})</span>`; document.getElementById('btn-in').style.display='none'; document.getElementById('btn-out').style.display='block'; document.getElementById('shift-buttons').style.display='none';}
+        else if(d.status==='CheckedOut'){disp.innerHTML=`<span class="text-danger">Selesai</span>`; document.getElementById('btn-in').style.display='none'; document.getElementById('shift-buttons').style.display='none';}
+        else{disp.innerText="Pilih Shift & Absen";}
     });
-
-    // Fetch Status
-    async function fetchStatus() {
-        try {
-            const res = await fetch('/api/status');
-            const data = await res.json();
-            updateUI(data);
-        } catch (e) { console.error(e); }
-    }
-
-    function updateUI(data) {
-        const disp = document.getElementById('status-display');
-        const inBtn = document.getElementById('btn-check-in');
-        const outBtn = document.getElementById('btn-check-out');
-        const shifts = document.getElementById('shift-buttons');
-
-        if (data.status === 'CheckedIn') {
-            disp.innerHTML = `<h3 class="text-success fw-bold">CHECKED IN</h3><p>${data.shift}</p><small>In: ${data.check_in_time}</small>`;
-            inBtn.style.display = 'none';
-            outBtn.style.display = 'block';
-            shifts.style.display = 'none';
-        } else if (data.status === 'CheckedOut') {
-            disp.innerHTML = `<h3 class="text-wine fw-bold">COMPLETED</h3><small>Out: ${data.check_out_time}</small>`;
-            inBtn.style.display = 'none';
-            outBtn.style.display = 'none';
-            shifts.style.display = 'none';
-        } else {
-            disp.innerHTML = `<h3 class="text-muted fw-bold">READY</h3><small>Select shift</small>`;
-            inBtn.style.display = 'block';
-            outBtn.style.display = 'none';
-            shifts.style.display = 'flex';
-        }
-    }
-
-    // Actions
-    function capture() {
-        const canvas = document.getElementById('camera-canvas');
-        canvas.width = video.videoWidth; canvas.height = video.videoHeight;
-        const ctx = canvas.getContext('2d');
-        ctx.translate(canvas.width, 0); ctx.scale(-1, 1);
-        ctx.drawImage(video, 0, 0);
-        return canvas.toDataURL('image/jpeg');
-    }
-
-    document.getElementById('btn-check-in').addEventListener('click', async () => {
-        const photo = capture();
-        Swal.fire({title: 'Processing', didOpen: () => Swal.showLoading()});
-        const res = await fetch('/api/check_in', {
-            method: 'POST', headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify({shift: currentShift, photo, lat: locationData.lat, lng: locationData.lng})
+    function loadHistory(){
+        fetch('/api/history').then(r=>r.json()).then(d=>{
+            let h=''; d.forEach(i=>{h+=`<div class="list-group-item d-flex justify-content-between"><div><strong>${i.date}</strong><br>${i.shift}</div><span class="badge ${i.status==='Hadir'?'bg-success':'bg-danger'}">${i.status}</span></div>`});
+            document.getElementById('history-list').innerHTML=h||'<div class="p-3 text-center">Kosong</div>';
         });
-        const json = await res.json();
-        if(json.success) { Swal.fire('Success', 'Checked In!', 'success'); fetchStatus(); }
-        else Swal.fire('Error', json.message, 'error');
-    });
-
-    document.getElementById('btn-check-out').addEventListener('click', async () => {
-        const photo = capture();
-        Swal.fire({title: 'Processing', didOpen: () => Swal.showLoading()});
-        const res = await fetch('/api/check_out', {
-            method: 'POST', headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify({photo, lat: locationData.lat, lng: locationData.lng})
-        });
-        const json = await res.json();
-        if(json.success) { Swal.fire('Success', 'Checked Out!', 'success'); fetchStatus(); }
-        else Swal.fire('Error', json.message, 'error');
-    });
-
-    fetchStatus();
+    }
 </script>
 {% endblock %}
