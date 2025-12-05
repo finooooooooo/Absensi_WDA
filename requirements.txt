@@ -1,0 +1,8 @@
+flask
+flask-sqlalchemy
+psycopg2-binary
+pandas
+openpyxl
+pillow
+werkzeug
+pytz

@@ -1,0 +1,60 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container d-flex flex-column justify-content-center align-items-center min-vh-100">
+    <div class="card card-glass p-4 w-100" style="max-width: 450px;">
+        <div class="text-center mb-4">
+            <h2 class="fw-bold text-wine mb-0">Join Wine Dental</h2>
+            <p class="text-muted text-gold">Create your account</p>
+        </div>
+
+        {% with messages = get_flashed_messages(with_categories=true) %}
+          {% if messages %}
+            {% for category, message in messages %}
+              <div class="alert alert-{{ category }}">{{ message }}</div>
+            {% endfor %}
+          {% endif %}
+        {% endwith %}
+
+        <form method="POST">
+            <div class="mb-3">
+                <label class="form-label small text-muted">Full Name</label>
+                <input type="text" class="form-control" name="full_name" required>
+            </div>
+            <div class="mb-3">
+                <label class="form-label small text-muted">Username</label>
+                <input type="text" class="form-control" name="username" required>
+            </div>
+            <div class="mb-3">
+                <label class="form-label small text-muted">Password</label>
+                <input type="password" class="form-control" name="password" required>
+            </div>
+
+            <div class="row g-2 mb-4">
+                <div class="col-6">
+                    <label class="form-label small text-muted">Branch</label>
+                    <select class="form-select" name="branch" required>
+                        <option value="" disabled selected>Select...</option>
+                        <option value="Pusat">Pusat</option>
+                        <option value="Jakbar">Jakbar</option>
+                        <option value="Cabang 2">Cabang 2</option>
+                    </select>
+                </div>
+                <div class="col-6">
+                    <label class="form-label small text-muted">Role Request</label>
+                    <select class="form-select" name="role" required>
+                        <option value="STAFF" selected>Staff</option>
+                        <option value="SPV">Supervisor</option>
+                    </select>
+                </div>
+            </div>
+
+            <button type="submit" class="btn btn-wine w-100 shadow-sm">Register Account</button>
+        </form>
+
+        <div class="text-center mt-3">
+            <small>Already have an account? <a href="{{ url_for('login') }}" class="text-wine fw-bold">Login</a></small>
+        </div>
+    </div>
+</div>
+{% endblock %}

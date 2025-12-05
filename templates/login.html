@@ -1,0 +1,38 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container d-flex flex-column justify-content-center align-items-center min-vh-100">
+    <div class="card card-glass p-4 w-100" style="max-width: 400px;">
+        <div class="text-center mb-4">
+            <h2 class="fw-bold text-wine mb-0">Wine Dental</h2>
+            <p class="text-muted text-gold">Aesthetic & Care</p>
+        </div>
+
+        {% with messages = get_flashed_messages(with_categories=true) %}
+          {% if messages %}
+            {% for category, message in messages %}
+              <div class="alert alert-{{ category }} py-2 text-center">{{ message }}</div>
+            {% endfor %}
+          {% endif %}
+        {% endwith %}
+
+        <form method="POST" action="{{ url_for('login') }}">
+            <div class="mb-3">
+                <label for="username" class="form-label text-muted small">Username</label>
+                <input type="text" class="form-control" id="username" name="username" required>
+            </div>
+            <div class="mb-4">
+                <label for="password" class="form-label text-muted small">Password</label>
+                <input type="password" class="form-control" id="password" name="password" required>
+            </div>
+            <button type="submit" class="btn btn-wine w-100 shadow-sm">Sign In</button>
+        </form>
+
+        <div class="text-center mt-4">
+             <p class="small text-muted mb-0">New Staff?</p>
+             <a href="{{ url_for('register') }}" class="btn btn-sm btn-outline-secondary mt-1">Create Account</a>
+        </div>
+    </div>
+    <p class="mt-4 text-muted small">&copy; 2024 Wine Dental Aesthetic</p>
+</div>
+{% endblock %}
