@@ -37,20 +37,44 @@
     <div class="card card-glass">
         <div class="card-header bg-transparent d-flex justify-content-between"><span class="fw-bold text-wine">Monitoring</span> <a href="/export" class="text-success small fw-bold">Excel</a></div>
         <div class="table-responsive">
-            <table class="table table-hover align-middle mb-0 small"><thead class="table-light"><tr><th>Nama</th><th>Shift</th><th>Waktu</th><th>Foto</th><th>Act</th></tr></thead>
+            <table class="table table-hover align-middle mb-0 small"><thead class="table-light"><tr><th>Nama</th><th>Shift</th><th>Waktu</th><th>Bukti Foto</th><th>Act</th></tr></thead>
             <tbody>{% for row in monitoring_data %}<tr>
                 <td><strong>{{ row.name }}</strong><br><span class="badge bg-light text-dark border">{{ row.branch }}</span></td>
                 <td>{{ row.shift }}</td>
                 <td>{{ row.in }}<br>{{ row.out }}</td>
                 <td>
-                    {% if row.photo_in %}<button class="btn btn-sm btn-outline-wine py-0" onclick="showPhoto('{{ row.photo_in }}','IN')">IN</button>{% endif %}
-                    {% if row.photo_out %}<button class="btn btn-sm btn-outline-danger py-0" onclick="showPhoto('{{ row.photo_out }}','OUT')">OUT</button>{% endif %}
+                    {% if row.photo_in %}
+                        <button class="btn btn-sm btn-outline-wine py-0" onclick="openLocalPhoto('{{ row.id }}', 'IN')">IN</button>
+                    {% else %}
+                        <button class="btn btn-sm btn-secondary py-0" disabled>No Foto</button>
+                    {% endif %}
+
+                    {% if row.photo_out %}
+                        <button class="btn btn-sm btn-outline-danger py-0" onclick="openLocalPhoto('{{ row.id }}', 'OUT')">OUT</button>
+                    {% else %}
+                        <button class="btn btn-sm btn-secondary py-0" disabled>No Foto</button>
+                    {% endif %}
                 </td>
                 <td>{% if row.potential_overtime and not row.is_overtime %}<form action="/approve_overtime/{{ row.id }}" method="POST"><button class="btn btn-sm btn-outline-primary py-0">ACC Lembur</button></form>{% endif %}</td>
             </tr>{% else %}<tr><td colspan="5" class="text-center text-muted">Kosong</td></tr>{% endfor %}</tbody></table>
         </div>
     </div>
 </div>
+
+<script>
+    const photoMap = {};
+    {% for row in monitoring_data %}
+        {% if row.photo_in %}photoMap['{{ row.id }}_IN'] = '{{ row.photo_in }}';{% endif %}
+        {% if row.photo_out %}photoMap['{{ row.id }}_OUT'] = '{{ row.photo_out }}';{% endif %}
+    {% endfor %}
+
+    function openLocalPhoto(id, type) {
+        const key = id + '_' + type;
+        if (photoMap[key]) {
+            showPhoto(photoMap[key], type);
+        }
+    }
+</script>
 {% endblock %}
 {% block scripts %}
 <script>

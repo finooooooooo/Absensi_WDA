@@ -250,9 +250,26 @@ def export():
     if session['user_role'] == 'STAFF': return "Unauthorized", 403
     q = Attendance.query.join(User)
     if session['user_role'] == 'SPV': q = q.filter(User.branch == session['user_branch'])
-    data = [{'Nama': a.user.full_name, 'Role': a.user.role, 'Branch': a.user.branch, 'Tanggal': a.date, 'Shift': a.shift_type, 'Check In': ensure_timezone(a.check_in_time), 'Check Out': ensure_timezone(a.check_out_time), 'Status': a.status, 'Lembur': 'YA' if a.is_overtime else 'TIDAK'} for a in q.all()]
+
+    def format_dt(dt):
+        if dt is None: return "-"
+        return ensure_timezone(dt).strftime('%Y-%m-%d %H:%M:%S')
+
+    data = [{
+        'Nama': a.user.full_name,
+        'Role': a.user.role,
+        'Branch': a.user.branch,
+        'Tanggal': a.date,
+        'Shift': a.shift_type,
+        'Check In': format_dt(a.check_in_time),
+        'Check Out': format_dt(a.check_out_time),
+        'Status': a.status,
+        'Lembur': 'YA' if a.is_overtime else 'TIDAK'
+    } for a in q.all()]
+
     output = io.BytesIO()
-    with pd.ExcelWriter(output, engine='openpyxl') as writer: pd.DataFrame(data).to_excel(writer, index=False, sheet_name='Laporan')
+    with pd.ExcelWriter(output, engine='openpyxl') as writer:
+        pd.DataFrame(data).to_excel(writer, index=False, sheet_name='Laporan')
     output.seek(0)
     return send_file(output, as_attachment=True, download_name='Laporan_Absensi.xlsx')
 
